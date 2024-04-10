@@ -1,0 +1,459 @@
+---
+title: "hw2_stat631"
+author: "Anjana Raj A"
+date: "2024-02-17"
+output:
+---
+```{r installing packages}
+packages <- c("fGarch", "ggplot2", "zoo", "xts","tseries", "quantmod", "TTR")
+
+# Load each package individually
+for (pkg in packages) {
+  library(pkg, character.only = TRUE)
+}
+```
+
+# Question 1
+```{r Qurestion 1: time series plot}
+data=read.csv("/Users/anjanaraja/Documents/Spring_24/stat_631/hw2/EURUSD=X.csv")  #loading csv file
+difflog=c(NA, diff(log(data$Close)))
+data$difflog=difflog  #calculating first difference of logs
+ExchangeRate=cbind(closing=data$Close, firstdiff=data$difflog)
+Date=as.Date(data$Date)
+ExchangeRate=as.xts(ExchangeRate, order.by = Date)  #creating an xts object with first difference and closing rates
+
+ggplot(ExchangeRate) +
+  geom_line(aes(x = Date, y = closing, color = "Closing")) +
+  geom_line(aes(x = Date, y = firstdiff, color = "First Difference")) +
+  labs(
+    title = "Time Series Plot of Exchange Rates",
+    x = "Date",
+    y = "Exchange Rates",
+    color = "Variable"
+  ) +
+  scale_color_manual(values = c("Closing" = "red", "First Difference" = "blue"), 
+                     labels = c("Closing Rate", "First Difference")) +  # Label lines in legend
+  theme_minimal()
+
+
+```
+
+```{r qq plots}
+qqnorm(ExchangeRate$firstdiff)
+qqline(ExchangeRate$firstdiff)
+
+
+# Function to calculate quantiles
+quantiles <- function(x) {
+  qq <- quantile(x, probs = seq(0.01, 0.99, by = 0.01), na.rm = TRUE)
+  data.frame(Theoretical = qq, Sample = qq)
+}
+
+# QQ plot
+ggplot(quantiles(ExchangeRate$firstdiff), aes(x = Theoretical, y = Sample)) +
+  geom_point() +
+  geom_abline(intercept = 0, slope = 1, color = "red") +
+  labs(title = "QQ Plot of First Difference of Logs",
+       x = "Theoretical Quantiles",
+       y = "Sample Quantiles") +
+  theme_minimal()
+
+
+```
+#Shapiro Test and JB Test
+```{r Test for normality}
+shapiro.test(difflog)
+difflog=na.omit(difflog)
+# Perform Jarque-Bera test
+jarque.bera.test(difflog)
+```
+```{r skewness kurtosis}
+
+kurtosis <- function(x) {  
+  firstlog=diff(log(data$Close))
+m4 <- mean((firstlog-mean(firstlog))^4) 
+kurt <- m4/(sd(firstlog)^4)-3  
+return(kurt)
+}
+kurtosis(firstlog)
+
+
+skewness <-  function(x) {
+firstlog=diff(log(data$Close))
+m3 <- mean((firstlog-mean(firstlog))^3)
+skew <- m3/(sd(firstlog)^3)
+return(skew)
+}
+
+skewness(firstlog)
+```
+```{r acf plots}
+acf(difflog, main = "ACF Plot of First Differences of Logs")
+```
+#Maximum Log Likelihook for T distribution
+```{r MLE t distribution}
+data=read.csv("/Users/anjanaraja/Documents/Spring_24/stat_631/hw2/EURUSD=X.csv")  #loading csv file
+
+difflog=c(NA, diff(log(data$Close)))
+
+data$difflog=difflog  #calculating first difference of logs
+
+ExchangeRate=cbind(closing=data$Close, firstdiff=data$difflog)
+
+Date=as.Date(data$Date)
+
+ExchangeRate=as.xts(ExchangeRate, order.by = Date)  #creating an xts object with first difference and closing rates
+
+first_diff=diff(log(ExchangeRate$closing))
+
+loglik.t = function(beta){
+  
+  center = beta[1]
+  std = beta[2]
+  nu1 = beta[3]
+  
+  nlike = -sum(dsstd(x,mean = center, sd = std, nu = nu1, log=TRUE))
+  
+  return(nlike)
+  
+}
+
+
+ini=c(mean(first_diff),sd(first_diff),11)
+
+fit.t =optim(ini, loglik.t, hessian = TRUE, method = "L-BFGS-B", lower = c(-1, 0.001,1))
+
+fit.t
+```
+#Plot the t-distribution corresponding to the maximum likelihood estimator. On the same plot overlay the kernel density estimator of the underlying density of the differenced logs.}
+```{r }
+logdiff=
+den = density(logdiff,bw = "sj", kernel = "gaussian")
+xaxis = den$x
+y = dt((xaxis-beta[1])/beta[2],beta[3])*(1/beta[2])
+
+
+par(mfrow = c(1,1))
+
+plot(den,main = "KDE for logdiffclose",col = "blue")
+lines(xaxis,y, col = "red")
+
+n = length(logdiff)
+nq = rep(0,n)
+
+# we will calculate the quantiles for p = (i-0.5)/n for i = 1,...,n.
+# use p=(i-0.5)/n rather than p=i/n to avoid the case p=1 (when i=n)
+
+for(i in c(1:n)){
+    
+# use q of the parametric distribution, here we used standard t-dist with
+# df = 3
+ nq[i] = beta[1] + beta[2]*qt((i-0.5)/n,df=beta[3])   
+    
+}
+
+xsort = sort(logdiff)
+
+# Plot the quantiles of the parametric distribution against the empirical quantiles of # the data
+
+plot(nq,xsort, type='o', lwd=2, main="",xlab="t quantiles with MLE parameters",ylab="quantiles of data")
+
+# overlay the 45 degree line 
+
+lines(nq,nq,col = "blue")
+
+```
+# MLE of Skewed T distribution
+```{r mle}
+loglik.std.t = function(beta){
+
+    center = beta[1]
+    std = beta[2]
+    nu1 = beta[3]
+    xi1 = beta[4]
+    
+    nlike = -sum(dsstd(x,mean = center, sd = std, nu = nu1, xi = xi1, log=TRUE))
+
+  return(nlike)
+
+   }
+
+x = diff(log(data$Close))
+
+ini = c(mean(x),sd(x),nu=12,xi=1)
+    
+skew_t = optim(ini,loglik.std.t,hessian=T,method = "L-BFGS-B", lower = c(-1,0.001,2.1,0.1))
+skew_t
+
+```
+
+#Log Likelihood Ratio Test for T vs Normal Distribution
+```{r}
+x = diff(log(data$Close))
+
+
+## Gaussian likelihood
+
+loglik.normal = function(alpha){
+
+    center = alpha[1]
+    std = alpha[2]
+    
+    nlike = -sum(dnorm(x,mean = center, sd = std, log=TRUE))
+
+  return(nlike)
+
+   }
+
+## t-likelihood (not skewed)
+
+loglik.t = function(beta){
+
+    center = beta[1]
+    scale = beta[2]
+    nu = beta[3]
+    n = length(x)
+
+# nlike = -sum(log(dt((x-mean)/scale,nu)*(1/scale)))    
+# This is the same as 
+    
+    nlike = -sum(dt((x-center)/scale,df=nu,log=TRUE) + log(1/scale))
+
+# Note, that setting log = TRUE means the log density is evaluated
+    
+  return(nlike)
+
+   }
+
+inin = c(mean(x),sd(x))
+
+fit.norm = optim(inin,loglik.normal,hessian=T,method = "L-BFGS-B", lower = c(-1,0.00001))
+
+#T distribution
+init = c(mean(x),sd(x),nu=11)
+    
+fit.t = optim(init,loglik.t,hessian=T,method = "L-BFGS-B", lower = c(-1,0.001,2.1))
+fit.t$value
+
+aic_normal=2*(fit.norm$value) + 2*2
+aic_t=2*(fit.t$value) + 2*3
+
+aic_normal
+aic_t
+
+```
+
+```{R LLR test Application}
+#H0:tau=1
+#H1:tau!=1
+
+
+######################################################################################
+#             THE MAXIMUM LIKELIHOOD OF THE SYMMETRIC T DISTRIBUTION
+######################################################################################
+data=read.csv("/Users/anjanaraja/Documents/Spring_24/stat_631/hw2/EURUSD=X.csv")  #loading csv file
+
+difflog=c(NA, diff(log(data$Close)))
+
+data$difflog=difflog  #calculating first difference of logs
+
+ExchangeRate=cbind(closing=data$Close, firstdiff=data$difflog)
+
+Date=as.Date(data$Date)
+
+ExchangeRate=as.xts(ExchangeRate, order.by = Date)  #creating an xts object with first difference and closing rates
+
+first_diff=diff(log(ExchangeRate$closing))
+
+loglik.t = function(beta){
+  
+  center = beta[1]
+  std = beta[2]
+  nu1 = beta[3]
+  
+  nlike = -sum(dsstd(x,mean = center, sd = std, nu = nu1, log=TRUE))
+  
+  return(nlike)
+  
+}
+
+
+initial=c(mean(first_diff),sd(first_diff),11)
+
+fit.t =optim(ini, loglik.t, hessian = TRUE, method = "L-BFGS-B", lower = c(-1, 0.001, 1))
+
+fit.t
+
+######################################################################################
+#             THE MAXIMUM LIKELIHOOD OF THE SKEWED T DISTRIBUTION
+######################################################################################
+loglik.std.t = function(beta){
+
+    center = beta[1]
+    std = beta[2]
+    nu1 = beta[3]
+    xi1 = beta[4]
+    
+    nlike = -sum(dsstd(x,mean = center, sd = std, nu = nu1, xi = xi1, log=TRUE))
+
+  return(nlike)
+
+   }
+ini = c(mean(x),sd(x),nu=12,xi=1)
+    
+fit.std.t = optim(ini,loglik.std.t,hessian=T,method = "L-BFGS-B", lower = c(-1,0.001,2.1,0.1))
+fit.std.t
+
+mle_t=fit.t$value
+mle_t
+mle_skew=fit.std.t$value
+mle_skew
+mle_diff=mle_skew-mle_t
+mle_diff
+llr=2*mle_diff
+llr
+```
+
+
+```{r Hessian}
+x = diff(log(data$Close))
+## t-likelihood (not skewed)
+
+loglik.t = function(beta){
+
+    center = beta[1]
+    scale = beta[2]
+    nu = beta[3]
+    n = length(x)
+
+# nlike = -sum(log(dt((x-mean)/scale,nu)*(1/scale)))    
+# This is the same as 
+    
+    nlike = -sum(dt((x-center)/scale,df=nu,log=TRUE) + log(1/scale))
+
+# Note, that setting log = TRUE means the log density is evaluated
+    
+  return(nlike)
+
+   }
+init = c(mean(x),sd(x),nu=11)
+    
+fit.t = optim(init,loglik.t,hessian=T,method = "L-BFGS-B", lower = c(-1,0.001,2.1))
+fit.t.beta=fit.t$par
+A=solve(fit.t$hessian)
+B=diag(A)
+std_error=sqrt(B[1])
+
+#Confidence Interval
+interval_upper=fit.t.beta[1]+1.96*std_error
+interval_upper
+interval_lower=fit.t.beta[1]-1.96*std_error
+interval_lower
+
+
+
+```
+#Question 3
+```{r}
+#Loding the data set
+eur=read.csv("/Users/anjanaraja/Documents/Spring_24/stat_631/hw2/EURUSD2015-2024.csv")
+#flling Na's
+eur_close=as.numeric(na.locf(eur$Close))
+#calculating first difference of logs
+eur_diff=na.locf(diff(log(eur_close))) 
+#creating dataset with closing and first difference
+eurx_rate=cbind(closing=eur_close, eur_diff=eur_diff)
+Date=as.Date(eur$Date)
+eurx_rate=as.xts(eurx_rate, order.by = Date) 
+
+yr_10=ggplot(eurx_rate) +
+  geom_line(aes(x = Date, y = closing, color = "First Diiference")) +
+  labs(
+    title = "Time Series Plot of Exchange Rates",
+    x = "Date",
+    y = "Exchange Rates",
+    color = "Variable"
+  ) +  # Label lines in legend
+  theme_minimal()
+yr_10
+#histogram of data
+hist(eurx_rate$eur_diff)
+
+#It is hard to determine the underlying distribution and what the probablities are at the corners. It does not provide any information abou the density. Once we determine the underlying density using a non-parametric distribution method,we can eyeball that to find the parametric family to fit to the data.
+
+#Why is the marginal distirbution of the log returns? If my data is iid, I can draw data from the correct distribution. And then figure out the expected profit or loss. 
+#The Kernel Density Estimator, you need to choose a kernel k and a bandwidth. We can estimate theh underlying density from the data but taking a kind of average.The choice of kernel and bandwidth 
+#Calculating Rolling Means
+# Function to plot KDE with different kernel types
+
+# Example data
+data <- eurx_rate$eur_diff  # Assuming eurx_rate$eur_diff contains the data
+
+# Set up plotting layout
+par(mfrow = c(1,1))
+
+# Plot KDE for different kernel types
+
+den = density(eurx_rate$eur_diff,bw = "sj", kernel = "gaussian")
+plot(den,main = "KDE for EURX 2015-2024",col = "blue")
+
+qqnorm(eurx_rate$eur_diff)
+qqline(eurx_rate$eur_diff)
+
+```
+#Rolling Windows-Means-Variance-Standard Error
+```{r Rolling log diff}
+# Load necessary libraries
+log_exchange_rate=eur_diff
+# Example data for demonstration purposes
+
+# Define the window size
+k <- 201
+
+# Calculate the first differences of the log exchange rate
+diff_log_exchange_rate <- log_exchange_rate
+
+# Calculate rolling mean of the first differences
+rolling_mean_diff <- rollapply(diff_log_exchange_rate, width = k, FUN = mean, align = "center")
+
+# Calculate rolling variance of the first differences
+rolling_var_diff <- rollapply(diff_log_exchange_rate^2, width = k, FUN = mean, align = "center") -
+                    (rolling_mean_diff)^2
+
+# Calculate rolling standard error of the rolling sample mean
+rolling_std_error_mean <- sqrt(rolling_var_diff) / sqrt(k)
+
+# Plot overlaying the rolling sample mean and rolling standard error
+plot(rolling_mean_diff, type = "l", col = "blue", ylim = c(min(rolling_mean_diff - rolling_std_error_mean), max(rolling_mean_diff + rolling_std_error_mean)),
+     main = "Rolling Mean and Rolling Standard Error",
+     xlab = "Time", ylab = "Value")
+lines(rolling_mean_diff + rolling_std_error_mean, col = "red", lty = 2)
+lines(rolling_mean_diff - rolling_std_error_mean, col = "red", lty = 2)
+legend("topright", legend = c("Rolling Mean", "Standard Error"), col = c("blue", "red"), lty = 1:2)
+
+
+```
+
+```{r Absolute rolling means}
+# Calculate absolute differences between consecutive observations
+abs_diff_log_exchange_rate <- abs(eur_diff)
+
+# Calculate rolling mean of the absolute differences
+rolling_mean_abs_diff <- rollapply(abs_diff_log_exchange_rate, width = k, FUN = mean, align = "center")
+
+# Calculate rolling variance of the absolute differences
+rolling_var_abs_diff <- rollapply(abs_diff_log_exchange_rate^2, width = k, FUN = mean, align = "center") -
+                        (rolling_mean_abs_diff)^2
+
+# Calculate rolling standard error of the rolling sample mean for absolute differences
+rolling_std_error_mean_abs_diff <- sqrt(rolling_var_abs_diff) / sqrt(k)
+
+# Plot overlaying the rolling sample mean and rolling standard error for absolute differences
+plot(rolling_mean_abs_diff, type = "l", col = "blue", ylim = c(min(rolling_mean_abs_diff - rolling_std_error_mean_abs_diff), max(rolling_mean_abs_diff + rolling_std_error_mean_abs_diff)),
+     main = "Rolling Mean and Rolling Standard Error (Absolute Differences)",
+     xlab = "Time", ylab = "Value")
+lines(rolling_mean_abs_diff + rolling_std_error_mean_abs_diff, col = "red", lty = 2)
+lines(rolling_mean_abs_diff - rolling_std_error_mean_abs_diff, col = "red", lty = 2)
+legend("topright", legend = c("Rolling Mean", "Standard Error"), col = c("blue", "red"), lty = 1:2)
+
+```
