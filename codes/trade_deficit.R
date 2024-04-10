@@ -50,7 +50,7 @@ combined=grid.arrange(actual_plot,diff12_plot,diff1_plot,deseason_plot, nrow=3)
 
 
 ########Fitting ARIMA Models to Data
-##q4_d
+
 test1 = arima(lag12,order = c(3,0,2))
 test1$coef
 par(mfrow = c(1,1))
@@ -60,7 +60,7 @@ f <- function(x) exp(2*pi*1i*x)
 x <- seq(0, 2*pi, by=0.001)
 plot(f(x), type  = "l", xlim = c(-3,3), ylim = c(-3,3),xlab = "real", ylab = "imaginary",asp = 1)
 points(polyroot(coef),col="blue", pch=15)
-##q4_e
+
 
 
 
