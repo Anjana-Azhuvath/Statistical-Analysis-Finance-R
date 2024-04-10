@@ -1,0 +1,153 @@
+---
+title: "GDP Growth and Recession Risk"
+author: "Anjana Raj A and Malisa G"
+date: "2023-02-15"
+output: 
+  word_document:
+    toc: true
+    toc_depth: 3
+    number_section: true
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r Loading libraries, include=FALSE}
+library(xts)
+library(ggplot2) 
+library(grid) 
+library(readxl)
+library(readr)
+library(zoo)
+library(tigerstats)
+library(TSstudio)
+library(plotly)
+```
+# Part1
+Download real GDP data for the US (FRED would be a good source for this). Take the longest possible
+sample you can get. Plot the data in Excel and then import the data and plot it in R/RMarkdown.
+## Loading Datasets 
+
+```{r importing Real GDP data, include=TRUE}
+mydata= read.csv("GDPC1.csv")
+```
+
+## Plot Real GDP Data
+
+```{r Real GDP plot}
+dates = as.Date(mydata$DATE[1:nrow(mydata)])
+Time_period=as.numeric(mydata$DATE)
+Real_gdp <- xts(x = mydata$GDPC1,order.by = dates)
+plot(Real_gdp,type='l',lt=3,col='pink',lwd=4,main="Real GDP of Unites States of America from 1947 to 2022",col.main='blue',xlab="Time",ylab="Billions of chained 2012 Dollars")
+```
+
+# PART 2
+Calculate the quarterly growth rate of real GDP by using the simple definition of the growth rate and by applying a logarithmic transformation. Plot the two growth rates for each variable on the same plot. Comment on the ”goodness” of the approximation.
+## Simple Quaterly Growth Rate
+
+```{r simple quaterly growth rate of GDP}
+qtr_gdp=c()
+for(i in seq(2, nrow(mydata))){
+  GDP_gr = (mydata$GDP[i] - mydata$GDP[i-1])/mydata$GDP[i-1]*100
+  qtr_gdp = c(qtr_gdp, GDP_gr)
+}
+```
+
+## Log Transformation of GDP
+```{r log transformation of data}
+mydata$log_gdp= log(mydata$GDP)
+```
+
+## Tranformed GDP Growth rates
+
+```{r transformed growth rates}
+ln_growth=c()
+for(i in seq(2, nrow(mydata))){
+  ln_GDPGR = (mydata$log_gdp[i] - mydata$log_gdp[i-1])*100
+  ln_growth = c(ln_growth, ln_GDPGR)
+}
+```
+
+## Annualized GDP Growth rates
+
+```{r log growth rates}
+annual_gr=c()
+for(i in seq(2, nrow(mydata))){
+  an_gr = (mydata$log_gdp[i] - mydata$log_gdp[i-1])*400
+  annual_gr = c(annual_gr, an_gr)
+}
+```
+
+## Creating xts Object
+```{r creating xts object}
+
+GDP_GR = mydata$GDPC1[1:nrow(mydata)]
+dates = as.Date(mydata$DATE[2:nrow(mydata)])
+
+xts_toplot = xts(matrix(c(qtr_gdp[1:303],ln_growth), byrow = F, nrow = 303),
+                 order.by = dates)
+```
+
+## Plotting graph of Growth rates
+```{r plot1}
+ggplot(xts_toplot) +
+  geom_line(aes(x = Index, y = xts_toplot[,1], 
+                color = "ln_growth"), show.legend = TRUE) +
+  geom_line(aes(x = Index, y = xts_toplot[,2], 
+                color = "GDP_qtr"), show.legend = TRUE) +
+  scale_color_manual(name = "Legend", 
+                     values = c("ln_growth" = "red", "GDP_qtr" = "blue")) +
+  ylab("Percentage") +
+  ylim(-10,10) +
+  theme(legend.position = "bottom")
+
+```
+The graphs of the simple and log transformed GDP are overlapping. This could indicate that they are good approximations.
+
+# PART 3
+
+Report the mean and the variance of the GDP growth. What is the unconditional forecast for real GDP growth? What is the probability of real GDP growth being negative? What is the probability that it will be below one standard deviation from its mean?
+
+## Reporting Mean and Variance of quaterly GDP growth rate
+
+```{r Mean and Variance of Quaterly GDP Growth}
+Mean_qtr=mean(qtr_gdp)
+var_gtr=var(qtr_gdp)
+std_qtr=sd(qtr_gdp)
+```
+The average of the quaterly growth rate of GDP is 0.766%. The variance is 1.3179%. The average will be the unconditional mean of the growth rate i.e 0.766%. The probablity of having a negative real GDP is about 0.25. The probablity of the real GDP deviating by one standard deviation from the mean is about 0.22.
+
+```{r histogram for quaterly growth}
+hist(qtr_gdp, breaks = 100, freq = FALSE, xlim = c(-5,5))
+curve(dnorm,xlim = c(-5,5), add = TRUE)
+```
+
+## Probabllity of outcome being negative
+```{r probablity of the outcome being negative}
+pnorm(0,mean=0.766,sd=1.1480,)
+```
+
+## Probablity that growth rate will be below one standard deviation from the mean
+```{r}
+pnorm(0,mean=0.766,sd=1)
+```
+# Part4
+Using the unconditional distribution, construct the 95% prediction interval around the mean.
+
+```{r unconditional distribution prediction interval around mean}
+qnorm(0.025,mean=0.766,sd=1.148)
+qnorm(0.975,mean=0.766,sd=1.148)
+pnormGC(bound=c(-1.484039,3.016039),region="between",
+        mean=0.766,sd=1.148,graph=TRUE)
+```
+# Part 5
+If you were to use the unconditional distribution of the quarterly GDP growth at an annualized rate, what would the 95% prediction interval around the mean be?
+```{r unconditional distribution of quaterly annualized GDP growth}
+mean_annual=mean(annual_gr)
+sd_annual=sd(annual_gr)
+qnorm(0.025,mean=mean_annual,sd=sd_annual)
+qnorm(0.975,mean=mean_annual,sd=sd_annual)
+```
+
+

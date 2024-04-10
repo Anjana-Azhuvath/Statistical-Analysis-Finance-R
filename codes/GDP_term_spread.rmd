@@ -1,0 +1,212 @@
+---
+title: "Untitled"
+author: "Anjana Raj A"
+date: "2023-04-26"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+```{r}
+## Install the packages
+Packages <- c("fredr","ggplot2","gridExtra","xts","zoo","dLagM","tsDyn","forecast","ARDL","tsDyn","roll")
+#install.packages(Packages, dependencies = TRUE)
+invisible(update.packages(Packages, dependencies = TRUE))
+invisible(lapply(Packages, library, character.only = TRUE))
+```
+
+```{r Loding data}
+# Load data from FRED
+fredr_set_key("9c0f4d14e4fe94550a4e231588e844e3")
+rgdp= fredr(series_id = "GDPC1",
+             observation_end = as.Date("2022-12-31"),
+             frequency = "q")
+spread= fredr(series_id = "T10Y2Y",
+             observation_end = as.Date("2022-12-31"),
+             frequency = "q")
+
+
+# Convert data to xts format
+GDP <- xts(rgdp $value, order.by = as.Date(rgdp $date))
+spread <- xts(spread$value, order.by = as.Date(spread$date))
+
+# Combine the two data sets into one xts object
+data1=na.omit(merge(GDP, spread, fill = na.locf))
+lndiffGdp= diff(log(data1$GDP), lag = 1) * 400
+data2=na.omit(cbind(lndiffGdp,spread))
+head(data2)
+```
+
+```{r Forecast Model 1: Preparing an AR model}
+
+a1=auto.arima(data2$GDP, seasonal = FALSE, stationary = TRUE, stepwise = FALSE, ic ="bic")
+a1
+
+```
+
+```{r Forecast Model 2: DL Model}
+a2=dlm(formula= GDP~x,data=data.frame(data2))
+summary(a2)
+```
+
+```{r Forecast Model 3: ARDL Model}
+a3=ardl(formula=GDP~x,data=data.frame(data2),c(1,1))
+summary(a3)
+```
+
+
+```{r}
+#Rolling forecast for ar, dl and ardl
+Y=data2$GDP
+X=data2$x
+lag_y=lag(data2$GDP,1)
+lag_x=lag(data2$x,1)
+
+data3=na.omit(cbind(Y,X,lag_y,lag_x))
+
+#Total no. of observations
+t=dim(data3)[1]
+
+#Forecast for from 2012 to 2022
+n=44
+actual=window(data3$GDP, start="2012-01-01", end="2022-10-01")
+#Size of training set
+train=data3[1:140]
+f=matrix(NA,nrow=140,ncol=1)
+p=matrix(NA,nrow=140,ncol=1)
+f1=matrix(NA,nrow=140,ncol=1)
+p1=matrix(NA,nrow=140,ncol=1)
+f2=matrix(NA,nrow=140,ncol=1)
+p2=matrix(NA,nrow=140,ncol=1)
+# creating a loop for recursive forecast scheme for ar model
+for(i in n:(t-1)){
+ar = Arima(data3[1:i,1],c(0,0,0),xreg =  data3[1:i,3])
+f[i-n+1,] = forecast(ar, xreg = data3[(i+1),3])$mean
+p[i-n+1,]=predict(ar,newxreg = data3[(i+1),3])$pred[1]
+}
+```
+
+```{r}
+# creating a loop for recursive forecast scheme for dl model
+for(i in n:(t-1)){
+dl = Arima(data3[1:i,1],c(0,0,0),xreg =  data3[1:i,2:3])
+f1[i-n+1,] = forecast(dl, xreg = data3[(i+1),2:3])$mean
+p1[i-n+1,]=predict(dl,newxreg = data3[(i+1),2:3])$pred[1]
+}
+```
+```{r}
+# creating a loop for recursive forecast scheme for adl model
+for(i in n:(t-1)){
+adl = Arima(data3[1:i,1],c(1,0,0),xreg =  data3[1:i,2:4])
+f2[i-n+1,] = forecast(adl, xreg = data3[(i+1),2:4])$mean
+p2[i-n+1,]=predict(adl,newxreg = data3[(i+1),2:4])$pred[1]
+}
+
+```
+
+```{r}
+#Creating an empty matrix
+s=matrix(NA,nrow=140,ncol=1)
+r=matrix(NA,nrow=140,ncol=1)
+s1=matrix(NA,nrow=140,ncol=1)
+r1=matrix(NA,nrow=140,ncol=1)
+s2=matrix(NA,nrow=140,ncol=1)
+r2=matrix(NA,nrow=140,ncol=1)
+
+# creating a loop for rolling forecast scheme for ar model
+for(i in n:(t-1)){
+ar1 = Arima(data3[(i-n+1):i,1],c(0,0,0),xreg =data3[(i-n+1):i,3])
+s[i-n+1,] = forecast(ar, xreg = data3[(i+1),3])$mean
+r[i-n+1,]=predict(ar,newxreg = data3[(i+1),3])$pred[1]
+}
+
+```
+
+
+```{r}
+# creating a loop for rolling forecast scheme for dl model
+for(i in n:(t-1)){
+dl1 = Arima(data3[(i-n+1):i,1],c(0,0,0),xreg =data3[(i-n+1):i,2:3])
+s1[i-n+1,] = forecast(dl, xreg = data3[(i+1),2:3])$mean
+r1[i-n+1,]=predict(dl,newxreg = data3[(i+1),2:3])$pred[1]
+}
+```
+
+```{r}
+# creating a loop for rolling forecast scheme for adl model
+for(i in n:(t-1)){
+adl1 = Arima(data3[(i-n+1):i,1],c(0,0,0),xreg =data3[(i-n+1):i,2:4])
+s2[i-n+1,] = forecast(adl, xreg = data3[(i+1),2:4])$mean
+r2[i-n+1,]=predict(adl,newxreg = data3[(i+1),2:4])$pred[1]
+}            
+```
+
+```{r}
+#Plotting out of sample forecasts
+osf= cbind(p,p2,p1,r1,r2,r,train$GDP)
+autoplot(osf)
+
+```
+
+```{r}
+#Rolling forecast using mean
+mean_gdp= mean(data3$GDP)
+train=window(data3$GDP, end="2011-12-12")
+test =window(data3$GDP, start="2012-10-01")
+train_set$rolling_mean_GDP= rollmean(data3$GDP, 140, fill = NA, align = "right")
+X_train= as.matrix(train_set$rolling_mean_GDP)
+y_train=as.matrix(train_set$GDP)
+mean_roll <- lm(y_train ~ X_train)
+summary(mean_roll)
+# Use the model to predict GDP for the testing set)
+y_test <- as.matrix(test_set$GDP)
+y_pred=na.omit(predict(mean_roll))
+
+# Calculate the performance metrics
+mse= mean((y_test - y_pred)^2)
+rmse_roll_mean= sqrt(mse)
+r_squared <- summary(model)$r.squared
+
+```
+
+```{r}
+#Recursive forecast using mean
+data4=cbind(data3$GDP, mean_gdp)
+p_rec=matrix(NA,nrow=140,ncol=1)
+for(i in n:(t-1)){
+lm_rec = lm(GDP~mean_gdp, data=data4[(i+1),1:2])
+p_rec[i-n+1,]=predict(lm_rec,newxreg = data4[(i+1),1:2])
+}
+rmse_rec_mean=sqrt(mean((train - p_rec)^2))
+
+```
+
+```{r}
+#Checking accuracy of the models
+roll_mse_ar=data.frame(accuracy(ar))
+roll_mse_dl=data.frame(accuracy(dl))
+roll_mse_adl=data.frame(accuracy(adl))
+rec_mse_ar=data.frame(accuracy(ar))
+rec_mse_dl=data.frame(accuracy(dl))
+rec_mse_adl=data.frame(accuracy(adl))
+accuracy=cbind(roll_ar_mse=roll_mse_ar$RMSE,roll_mse_dl=roll_mse_dl$RMSE,roll_mse_adl=roll_mse_adl$RMSE,rec_mse_ar=rec_mse_ar$RMSE,rec_mse_dl=rec_mse_dl$RMSE,rec_mse_adl$RMSE,rmse_rec_mean, rmse_roll_mean)
+
+
+accuracy
+```
+
+```{r}
+ 
+summary(adl1)
+#The best model is the rolling adl model. It has a low AIC and BIC. About 53% of the changes in the GDP growth is explained by this model when compared to the worst model explaining only 3% of the changes in GDP growth. GDP.1 coefficient is statistically significant at the 5% level, while the intercept, x, and x.1 coefficients are not. In the worst model none of the dependent variables are statistically significant.
+
+summary(mean_roll)
+```
+```{r}
+
+2.03*2.5415004-3.1826*-0.56+0.143*3.1918520+3.389*-0.28
+```
+
+
+

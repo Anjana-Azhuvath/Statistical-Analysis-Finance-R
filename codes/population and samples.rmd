@@ -1,0 +1,80 @@
+---
+title: "mar3_azhuvath"
+author: "Anjana Raj A"
+date: "2023-03-03"
+output: word_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r sampling observations}
+set.seed(123)
+
+# generate 100 independent random samples of 50 observations from a Normal distribution with mean 5 and variance 4
+s_50 = replicate(100, rnorm(n = 50, mean = 5, sd = 2))
+# generate 100 independent random samples of 100 observations from a Normal distribution with mean 5 and variance 4
+s_100=replicate(100, rnorm(n = 100, mean = 5, sd = 2))
+# generate 100 independent random samples of 1000 observations from a Normal distribution with mean 5 and variance 4
+s_1000a=replicate(100, rnorm(n = 1000, mean = 5, sd = 2))
+# generate 100 independent random samples of 100 observations from a Normal distribution with mean 5 and variance 4
+s_1000 =replicate(1000, rnorm(n = 100, mean = 5, sd = 2))
+# De-mean and divide by the standard deviation of the population
+std_samples=apply(s_50, 2, function(x) (x - 5)/2)
+
+# check the dimensions of the resulting matrix
+dim(s_50)
+dim(s_100)
+dim(s_1000a)
+dim(s_1000)
+
+# Calculate the mean across the samples
+mean_50 =colMeans(s_50)
+mean_100=colMeans(s_100)
+mean_1000a=colMeans(s_1000a)
+mean_1000=colMeans(s_1000)
+mean_std=colMeans(std_samples)
+
+
+# Divide the plotting area into three panels
+par(mfrow = c(1, 5))
+
+# Plot the distribution of the mean for each set of samples
+hist(mean_50, breaks = 50, main = "Distribution for 50 observations", xlab = "Sample Mean")
+abline(v = 5, col = "red", lwd = 2)
+curve(dnorm(x, mean = mean(mean_50), sd = sd(mean_50)), add = TRUE, col = "blue")
+
+hist(mean_100, breaks = 50, main = "Distribution for 100 observations", xlab = "Sample Mean")
+abline(v = 5, col = "red", lwd = 2)
+curve(dnorm(x, mean = mean(mean_100), sd = sd(mean_100)), add = TRUE, col = "blue")
+
+hist(mean_1000a, breaks = 50, main = "Distribution for 1000 observations", xlab = "Sample Mean")
+abline(v = 5, col = "red", lwd = 2)
+curve(dnorm(x, mean = mean(mean_1000a), sd = sd(mean_1000a)), add = TRUE, col = "blue")
+
+hist(mean_1000, breaks = 50, main = "Distribution for 1000 samples", xlab = "Sample Mean")
+abline(v = 5, col = "red", lwd = 2)
+curve(dnorm(x, mean = mean(mean_1000), sd = sd(mean_1000)), add = TRUE, col = "blue")
+
+hist(mean_std, breaks = 50, main = "Standardized Distribution", xlab = "Sample Mean")
+curve(dnorm(x, mean = 0, sd = 1), add = TRUE, col = "blue")
+
+```
+
+
+**1)How useful is the distribution of the sample mean for the population parameter?**
+_Ans: The population is unboserved, it is the group of all entities. Given that the population is infinitely large, the sample mean is useful in infering about the population mean. The population mean can be estimated from the sample mean.As the variation decreases, the sample mean tends towards the true mean._
+
+**2)How does your answer change if you consider 100 independent random samples of 100 observations?**
+**3)How does it change if you change the number of observations to 1000?**
+
+_Ans: The distribution tends to becomes tighter, centered around the population mean, sample size remaining the same. _
+
+**4)How would your answer change if you reconsider [i] by drawing 1000 independent random samples instead of 100?**
+
+_Ans: As the sample size increases, the graph tends to represent the central limit theorem. The distribution tends to become more normal and the variability tends to decrease. The distribution becomes well approximated_
+
+**5)How does the distribution of the sample mean change? If there is a change, can you explain the reason for the change?**
+
+_Ans: When the distribution is standardized, the histogram is centered around a mean of 0 and the standard deviation becomes. There is however no change in the distribution as such. The scale on the x axis alone varies._
