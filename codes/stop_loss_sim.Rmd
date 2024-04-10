@@ -1,0 +1,217 @@
+---
+title: "hw1_833001533_ara"
+author: "Anjana Raj A"
+date: "2024-02-03"
+output:
+  pdf_document: default
+---
+
+```{r installing and running packages}
+library("fGarch")
+library("tigerstats")
+library("ggplot2")
+library("TTR")
+library("gridExtra")
+library("quantmod")
+```
+
+```{r Comparing Distirbutions}
+x=seq(-50,50)
+y1 =dsstd(x, mean=1, sd=1, xi=1)
+y2 =dsstd(x, mean=1, sd=2, xi=1)
+y3 =dsstd(x, mean=1, sd=1, xi=3)
+y4 =dsstd(x, mean=4, sd=1, xi=1)
+df1= data.frame( x=x, y1=y1, y2=y2, y3=y3, y4=y4, each=101)
+p1=ggplot(df1, aes(x, y1)) + geom_line()+labs(title="Benchmark: with same mean, st. dev and mu")+ theme_minimal() +
+  theme(plot.title = element_text(size = 8))
+p2=ggplot(df1, aes(x, y2)) + geom_line()+labs(title="Changing st.deviation but keeping mean and mu constant")+theme_minimal() +
+  theme(plot.title = element_text(size = 8))
+p3=ggplot(df1, aes(x, y3)) + geom_line()+labs(title="Changing mu but keeping mean and st.deviation constant")+theme_minimal() +
+  theme(plot.title = element_text(size = 8))
+p4=ggplot(df1, aes(x, y4)) + geom_line()+labs(title="Changing mean but keeping mu and st.deviation constant")+theme_minimal() +
+  theme(plot.title = element_text(size = 8))
+
+tdist=grid.arrange(p1, p2, p3, p4, nrow = 2, ncol=2)
+```
+Increasing the sd flattens the distribution, decreasing the degrees of freedom xi makes it more peaked, and changing the mean shifts the distribution horizontally. The t-distribution shape is very sensitive to the xi parameter controlling the degrees of freedom.
+
+```{r hedge fund}
+
+#### Expected profit with loss $50k
+niter = 2e5
+Days = 100
+
+profit = rep(0,niter)
+
+for(j in c(1:niter)){
+  daily = rnorm(Days, mean =  0.05/253, sd = 0.23/sqrt(253))
+  closes = log(1e6) + cumsum(daily)
+
+  minDay = which(closes < log(950000))[1]
+  if(is.na(minDay)==TRUE) minDay = Days
+
+  maxDay = which(closes > log(1100000))[1]
+  if(is.na(maxDay) == TRUE) maxDay = Days
+  
+  saleDay = min(minDay,maxDay)
+  profit[j] = exp(closes[saleDay]) - 1e6
+
+}
+
+hist(profit, 50)
+exp_profit_50k=mean(profit)
+
+
+#### Expected profit with loss $40k
+niter = 2e5
+Days = 100
+
+profit = rep(0,niter)
+
+for(j in c(1:niter)){
+  daily = rnorm(Days, mean =  0.05/253, sd = 0.23/sqrt(253))
+  closes = log(1e6) + cumsum(daily)
+
+  minDay = which(closes < log(960000))[1]
+  if(is.na(minDay)==TRUE) minDay = Days
+
+  maxDay = which(closes > log(1100000))[1]
+  if(is.na(maxDay) == TRUE) maxDay = Days
+  
+  saleDay = min(minDay,maxDay)
+  profit[j] = exp(closes[saleDay]) - 1e6
+
+}
+
+hist(profit, 50)
+exp_profit_40k=mean(profit)
+
+#### Expected profit with loss $30k
+niter = 2e5
+Days = 100
+
+profit = rep(0,niter)
+
+for(j in c(1:niter)){
+  daily = rnorm(Days, mean =  0.05/253, sd = 0.23/sqrt(253))
+  closes = log(1e6) + cumsum(daily)
+
+  minDay = which(closes < log(970000))[1]
+  if(is.na(minDay)==TRUE) minDay = Days
+
+  maxDay = which(closes > log(1100000))[1]
+  if(is.na(maxDay) == TRUE) maxDay = Days
+  
+  saleDay = min(minDay,maxDay)
+  profit[j] = exp(closes[saleDay]) - 1e6
+
+}
+
+hist(profit, 50)
+exp_profit_30k=mean(profit)
+
+##3 Changing Threshold from 100k
+
+niter = 2e5
+Days = 100
+
+profit = rep(0,niter)
+
+for(j in c(1:niter)){
+  daily = rnorm(Days, mean =  0.05/253, sd = 0.23/sqrt(253))
+  closes = log(12000000) + cumsum(daily)
+
+  minDay = which(closes < log(970000))[1]
+  if(is.na(minDay)==TRUE) minDay = Days
+
+  maxDay = which(closes > log(1100000))[1]
+  if(is.na(maxDay) == TRUE) maxDay = Days
+  
+  saleDay = min(minDay,maxDay)
+  profit[j] = exp(closes[saleDay]) - 12000000
+
+}
+
+hist(profit, 50)
+exp_profit_threshold=mean(profit)
+
+#Change the number of trading days
+
+niter = 2e5
+Days = 40
+
+profit = rep(0,niter)
+
+for(j in c(1:niter)){
+  daily = rnorm(Days, mean =  0.05/253, sd = 0.23/sqrt(253))
+  closes = log(1e6) + cumsum(daily)
+
+  minDay = which(closes < log(950000))[1]
+  if(is.na(minDay)==TRUE) minDay = Days
+
+  maxDay = which(closes > log(1100000))[1]
+  if(is.na(maxDay) == TRUE) maxDay = Days
+  
+  saleDay = min(minDay,maxDay)
+  profit[j] = exp(closes[saleDay]) - 1e6
+
+}
+
+hist(profit, 50)
+trading_40=mean(profit)
+
+
+expected_profits=as.table(c(loss50k=exp_profit_50k, loss40k=exp_profit_40k, loss30k=exp_profit_30k, thresholdChange=exp_profit_threshold, dayChange=trading_40))
+expected_profits
+```
+Decreasing the lower loss threshold from 50K to 40K or 30K decreases expected profits.
+Increasing profit threshold from 10k to 12k increases expected profits.
+By reducing the trading days from 100 to 40, the expected loss declines.
+
+
+```{r problem 4}
+ niter = 10000
+value = matrix(niter)
+ set.seed(2015)
+for (i in 1:niter)
+{
+Return = rnorm(20, mean =  0.002, sd = 0.03)
+prices = 93.45 * exp(cumsum(Return))
+ind = (min(prices) < 85)
+value[i] = 100*ind - (3 - ind)
+ }
+mu = mean(value)
+mu
+```
+
+```{r problem 5 and 6}
+set.seed(123)  # Setting seed for reproducibility
+
+# Parameters
+mean_return =0.0002
+sd_return = 0.01
+initial_price = 93.45
+strike_price_1 =85
+strike_price_2 = 84.5
+additional_payment = 200
+iterations = 10000
+
+# Simulate stock price movements
+simulated_returns = rnorm(iterations, mean_return, sd_return)
+simulated_prices = initial_price * exp(cumsum(simulated_returns))
+
+# Calculate profit/loss
+profit_loss =ifelse(simulated_prices < strike_price_1, 100, 
+                      ifelse(simulated_prices < strike_price_2, 300, -3))
+
+# Calculate mean profit/loss
+mean_profit_loss = mean(profit_loss)
+
+# Print the result
+cat("Estimated mean profit/loss:", mean_profit_loss, "\n")
+
+
+```
+
+
+
