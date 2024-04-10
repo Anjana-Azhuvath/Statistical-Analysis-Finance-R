@@ -1,5 +1,6 @@
-# Asset-Pricing-Models
+# Repository Contents
 
-The repository consists of
-1. CAPM Models
-2. Fama French 3 Factor Model
+1. Hedge Fund Simulations
+2. Analysis of Netflix Stock Returns
+3. Trade Deficit Analysis
+4. Euro-Dollar Exchange Study
