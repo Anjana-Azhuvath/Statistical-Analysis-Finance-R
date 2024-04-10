@@ -1,5 +1,4 @@
-### Assignment 9
-### Suggested Answer Key.
+
 
 ## Problem: Spurious regression using Monte Carlo Experiment (Q1 ~ Q7) =====================================
 # Initialize the seed, helpful for replication
